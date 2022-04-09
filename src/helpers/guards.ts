@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { WriteStream, createWriteStream } from 'fs'
 import path from 'path'
 
 export function string(val: unknown): string {
@@ -40,3 +39,26 @@ export function emoji(id: number): string {
             throw new Error()
     }
 }
+
+export function memberHash(id: number): string {
+    switch(id) {
+        case 61:
+            return '#JIU'
+        case 62:
+            return '#SUA'
+        case 63:
+            return '#SIYEON'
+        case 64:
+            return '#HANDONG'
+        case 65:
+            return '#YOOHYEON'
+        case 66:
+            return '#DAMI'
+        case 67:
+            return '#GAHYEON'
+        default:
+            throw new Error()
+    }
+}
+
+export const footer = '\n#DREAMCATCHER\n#드림캐쳐\n#Apocalypse_SaveUs\n@hf_dreamcatcher'
