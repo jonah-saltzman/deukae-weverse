@@ -4,6 +4,7 @@ import { string, downloadImg, emoji, memberHash, footer } from "./helpers/index.
 import dotenv from 'dotenv'
 import fs from 'fs'
 import path from 'path'
+import {v2} from '@google-cloud/translate'
 
 type SaveTweet = {
     postId: number,
@@ -16,7 +17,9 @@ const twtKey = string(process.env.TWT_CONSUMER_KEY)
 const twtSecret = string(process.env.TWT_CONSUMER_SECRET)
 const oauthToken = string(process.env.TWT_OAUTH_TOKEN)
 const oauthSecret = string(process.env.TWT_OAUTH_SECRET)
-const twtBot = string(process.env.TWT_USER)
+
+const { Translate } = v2
+
 import { fileURLToPath } from "url"
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -27,9 +30,10 @@ const Twitter = new TwitterApi({
     accessSecret: oauthSecret
 }).readWrite
 
+const Google = new Translate();
+
 const Weverse = new WeverseClient({token: wvToken}, true)
 
-//const posts = new Map<number, WeversePost>()
 const tweets = new Map<number, TweetV1>()
 const savedTweets: SaveTweet[] = []
 const twtPrefix = 'https://twitter.com/DeukaeWeverse/status/'
@@ -40,13 +44,17 @@ async function run() {
     Weverse.listen({listen: true, interval: 5000, process: true})
     Weverse.on('post', async post => {
         try {
-            const tweetText = emoji(post.artist.id) + ': ' + post.body + '\n' + memberHash(post.artist.id) + '\n\n'
+            const body = post.body
+                ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
+                : emoji(post.artist.id) + '\n\n'
+            const tweetText = body + memberHash(post.artist.id) + '\n'
+            let tweet: TweetV1 | undefined
             if (post.photos && post.photos.length) {
                 const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
                 const mediaIds = await Promise.all(photos.map(p => {
                     return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
                 }))
-                const tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: mediaIds })
+                tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: mediaIds })
                 console.log(tweet)
                 tweets.set(post.id, tweet)
                 savedTweets.push({postId: post.id, tweet: tweet})
@@ -56,17 +64,20 @@ async function run() {
                 const mediaIds = await Promise.all(videos.map(v => {
                     return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
                 }))
-                const tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: mediaIds })
+                tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: mediaIds })
                 console.log(tweet)
                 tweets.set(post.id, tweet)
                 savedTweets.push({postId: post.id, tweet: tweet})
                 saveTweets()
             } else {
-                const tweet = await Twitter.v1.tweet(tweetText + footer)
+                tweet = await Twitter.v1.tweet(tweetText + footer)
                 console.log(tweet)
                 tweets.set(post.id, tweet)
                 savedTweets.push({postId: post.id, tweet: tweet})
                 saveTweets()
+            }
+            if (tweet && post.body) {
+                replyWithTrans(post.body, post.artist.id, tweet)
             }
         } catch(e) {
             console.error(e)
@@ -78,6 +89,7 @@ async function run() {
         if (replyTo) {
             const withQuote = tweetText + twtPrefix + replyTo.id.toString() + '\n'
             const tweet = await Twitter.v1.tweet(withQuote + footer)
+            replyWithTrans(comment.body, comment.artist.id, tweet)
             console.log(tweet)
         }
     })
@@ -98,6 +110,16 @@ function loadTweets() {
         tweets.set(saved.postId, saved.tweet)
         savedTweets.push(saved)
     })
+}
+
+async function replyWithTrans(text: string, artist: number, tweet: TweetV1) {
+    try {
+        const translations = await Google.translate(text, 'en')
+        const tweetText = '[TRANS]\n' + emoji(artist) + ': ' + translations[0] + '\n\n' + memberHash(artist) + '\n'
+        await Twitter.v1.reply(tweetText + footer, tweet.id_str)
+    } catch (e) {
+        console.error(e)
+    }
 }
 
 run()
