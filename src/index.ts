@@ -2,7 +2,6 @@ import { WeverseClient } from "weverse"
 import { TweetV1, TwitterApi } from 'twitter-api-v2'
 import { string, downloadImg, emoji, memberHash, footer } from "./helpers/index.js"
 import dotenv from 'dotenv'
-import { WeversePost } from "weverse/lib/cjs/models"
 import fs from 'fs'
 import path from 'path'
 
@@ -25,7 +24,8 @@ const Twitter = new TwitterApi({
     appKey: twtKey,
     appSecret: twtSecret,
     accessToken: oauthToken,
-    accessSecret: oauthSecret}).readWrite
+    accessSecret: oauthSecret
+}).readWrite
 
 const Weverse = new WeverseClient({token: wvToken}, true)
 
@@ -40,7 +40,7 @@ async function run() {
     Weverse.listen({listen: true, interval: 5000, process: true})
     Weverse.on('post', async post => {
         try {
-            const tweetText = emoji(post.artist.id) + ': ' + post.body + '\n' + memberHash(post.artist.id) + '\n'
+            const tweetText = emoji(post.artist.id) + ': ' + post.body + '\n' + memberHash(post.artist.id) + '\n\n'
             if (post.photos && post.photos.length) {
                 const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
                 const mediaIds = await Promise.all(photos.map(p => {
