@@ -61,4 +61,4 @@ export function memberHash(id: number): string {
     }
 }
 
-export const footer = '\n#DREAMCATCHER\n#드림캐쳐\n#Apocalypse_SaveUs\n@hf_dreamcatcher'
+export const footer = '\n#DREAMCATCHER #드림캐쳐 #Apocalypse_SaveUs'
