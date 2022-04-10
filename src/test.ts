@@ -1,24 +1,29 @@
 import {v2} from '@google-cloud/translate'
 import dotenv from 'dotenv'
+import { TweetV1, TwitterApi } from 'twitter-api-v2'
+import { string }  from "./helpers/index.js"
 dotenv.config()
 
-const { Translate } = v2
-// Creates a client
-const translate = new Translate();
+const twtKey = string(process.env.TWT_CONSUMER_KEY)
+const twtSecret = string(process.env.TWT_CONSUMER_SECRET)
+const oauthToken = string(process.env.TWT_OAUTH_TOKEN)
+const oauthSecret = string(process.env.TWT_OAUTH_SECRET)
 
-/**
- * TODO(developer): Uncomment the following lines before running the sample.
- */
-const text = '뀨우😚\n썸냐들 정말 봄이 왔나봐요ㅠㅠㅠㅠㅠ🌸좋다ㅠㅠ';
-const target = 'en';
+const { Translate } = v2
+
+const twtPrefix = 'https://twitter.com/DeukaeWeverse/status/'
+const twtId = '1513188328019054596'
+
+const Twitter = new TwitterApi({
+    appKey: twtKey,
+    appSecret: twtSecret,
+    accessToken: oauthToken,
+    accessSecret: oauthSecret
+}).readWrite
 
 async function translateText() {
-  // Translates the text into the target language. "text" can be a string for
-  // translating a single piece of text, or an array of strings for translating
-  // multiple texts.
-  let translations = await translate.translate(text, target);
-  console.log(translations.length)
-  console.log(translations[0])
+  const withQuote = 'quote tweet\n' + twtPrefix + twtId + '\n'
+  await Twitter.v2.tweet(withQuote)
 }
 
 translateText();

@@ -53,22 +53,23 @@ async function run() {
                 : emoji(post.artist.id) + '\n\n'
             const tweetText = body + memberHash(post.artist.id) + '\n'
             let tweet: TweetV1 | undefined
+            let medias: string[] | undefined
             if (post.photos && post.photos.length) {
                 const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
-                const mediaIds = await Promise.all(photos.map(p => {
+                medias = await Promise.all(photos.map(p => {
                     return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
                 }))
-                tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: mediaIds })
+                tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
                 console.log(tweet)
                 tweets.set(post.id, tweet)
                 savedTweets.push({postId: post.id, tweet: tweet})
                 saveTweets()
             } else if (post.attachedVideos) {
                 const videos = await Promise.all(post.attachedVideos.map(v => downloadImg(v.videoUrl)))
-                const mediaIds = await Promise.all(videos.map(v => {
+                medias = await Promise.all(videos.map(v => {
                     return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
                 }))
-                tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: mediaIds })
+                tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
                 console.log(tweet)
                 tweets.set(post.id, tweet)
                 savedTweets.push({postId: post.id, tweet: tweet})
@@ -81,17 +82,20 @@ async function run() {
                 saveTweets()
             }
             if (tweet && post.body) {
-                replyWithTrans(post.body, post.artist.id, tweet)
+                replyWithTrans(post.body, post.artist.id, tweet, medias)
             }
         } catch(e) {
             console.error(e)
         }
     })
     Weverse.on('comment', async (comment, post) => {
-        const tweetText = emoji(comment.artist.id) + ': ' + comment.body + '\n' + memberHash(comment.artist.id) + '\n'
+        const tweetText = emoji(comment.artist.id) + ' replied to '
+                        + emoji(post.artist.id) + ': '
+                        + comment.body + '\n'
+                        + memberHash(comment.artist.id) + '\n'
         const replyTo = tweets.get(post.id)
         if (replyTo) {
-            const withQuote = tweetText + twtPrefix + replyTo.id.toString() + '\n'
+            const withQuote = tweetText + twtPrefix + replyTo.id_str + '\n'
             const tweet = await Twitter.v1.tweet(withQuote + footer)
             replyWithTrans(comment.body, comment.artist.id, tweet)
             console.log(tweet)
@@ -100,6 +104,16 @@ async function run() {
     Weverse.on('poll', status => {
         console.log('Polled Weverse: ', status, new Date().toLocaleString())
     })
+}
+
+async function replyWithTrans(text: string, artist: number, tweet: TweetV1, media?: string[]) {
+    try {
+        const translations = await Google.translate(text, 'en')
+        const tweetText = '[TRANS]\n' + emoji(artist) + ': ' + translations[0] + '\n\n' + memberHash(artist) + '\n'
+        await Twitter.v1.reply(tweetText + footer, tweet.id_str, {media_ids: media})
+    } catch (e) {
+        console.error(e)
+    }
 }
 
 function saveTweets() {
@@ -114,16 +128,7 @@ function loadTweets() {
         tweets.set(saved.postId, saved.tweet)
         savedTweets.push(saved)
     })
-}
-
-async function replyWithTrans(text: string, artist: number, tweet: TweetV1) {
-    try {
-        const translations = await Google.translate(text, 'en')
-        const tweetText = '[TRANS]\n' + emoji(artist) + ': ' + translations[0] + '\n\n' + memberHash(artist) + '\n'
-        await Twitter.v1.reply(tweetText + footer, tweet.id_str)
-    } catch (e) {
-        console.error(e)
-    }
+    console.log(`loaded ${array.length} tweets from json`)
 }
 
 async function testTrans() {
