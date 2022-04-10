@@ -30,7 +30,10 @@ const Twitter = new TwitterApi({
     accessSecret: oauthSecret
 }).readWrite
 
-const Google = new Translate();
+const Google = new Translate({
+    projectId: 'dc-weverse',
+    keyFilename: './src/dc-weverse-9c6f63ca3f16.json'
+})
 
 const Weverse = new WeverseClient({token: wvToken}, true)
 
@@ -39,6 +42,7 @@ const savedTweets: SaveTweet[] = []
 const twtPrefix = 'https://twitter.com/DeukaeWeverse/status/'
 
 async function run() {
+    testTrans()
     loadTweets()
     await Weverse.init({allPosts: false, allMedia: false, allNotifications: false})
     Weverse.listen({listen: true, interval: 5000, process: true})
@@ -120,6 +124,11 @@ async function replyWithTrans(text: string, artist: number, tweet: TweetV1) {
     } catch (e) {
         console.error(e)
     }
+}
+
+async function testTrans() {
+    const r = await Google.translate('뀨우😚\n썸냐들 정말 봄이 왔나봐요ㅠㅠㅠㅠㅠ🌸좋다ㅠㅠ', 'en')
+    console.log(r[0])
 }
 
 run()
