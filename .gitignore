@@ -2,5 +2,6 @@ lib
 node_modules
 .env
 tweets
-test.ts
-src/test.ts
+src/dc-weverse-9c6f63ca3f16.json
+lib/dc-weverse-9c6f63ca3f16.json
+.DS_Store
