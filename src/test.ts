@@ -5,6 +5,10 @@ import { WeverseClient } from "weverse"
 import { WeversePost } from 'weverse/lib/cjs/models'
 import { string, downloadImg, emoji, memberHash, footer } from "./helpers/index.js"
 dotenv.config()
+import { PythonShell } from 'python-shell'
+import path from 'path'
+import { fileURLToPath } from "url"
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const twtKey = string(process.env.TWT_CONSUMER_KEY)
 const twtSecret = string(process.env.TWT_CONSUMER_SECRET)
@@ -26,29 +30,20 @@ const Twitter = new TwitterApi({
 
 const myClient = new WeverseClient({token: wvToken}, true)
 
+enum IG {
+    JIU = 'minjiu__u',
+    SUA = 'sualelbora',
+    SIYEON = '______s2ing',
+    HANDONG = '0.0_handong',
+    YOOH = 'ms.yoohyeonkim',
+    DAMI = '00ld_ami',
+    GAH = 'fox._.zzlo_'
+}
+
+const IgUsers = [IG.JIU, IG.SUA, IG.SIYEON, IG.HANDONG, IG.YOOH, IG.DAMI, IG.GAH]
+
 async function translateText() {
-  await myClient.init({allMedia: false, allNotifications: false, allPosts: false})
-  myClient.posts.forEach((post) => handlePost(post, false))
-//   console.log(myClient.authType)
-//   console.log(myClient.authorized)
-//   const today = sameDay(new Date())
-//   const yday = sameDay(new Date('04-10-2022'))
-//   const before = sameDay(new Date('04-09-2022'))
-//   if (today) {
-//       console.log('today')
-//       console.log(today.attachedVideos)
-//       console.log(today.photos)
-//   }
-//   if (yday) {
-//       console.log('yday')
-//       console.log(yday.attachedVideos)
-//       console.log(yday.photos)
-//   }
-//   if (before) {
-//         console.log('before')
-//       console.log(before.attachedVideos)
-//       console.log(before.photos)
-//   }
+    
 }
 
 function sameDay(d: Date): WeversePost | undefined {
