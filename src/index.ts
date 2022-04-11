@@ -46,7 +46,7 @@ const postBacklog: number[] = []
 async function run() {
     testTrans()
     loadTweets()
-    await Weverse.init({allPosts: false, allMedia: false, allNotifications: false})
+    await Weverse.init({allPosts: true, allMedia: false, allNotifications: false})
     backlog()
     onThisDay()
     setInterval(onThisDay, 86400000)
