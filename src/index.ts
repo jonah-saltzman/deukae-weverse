@@ -95,7 +95,7 @@ async function handlePost(post: WeversePost) {
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
         } else {
-            tweet = await Twitter.v1.tweet(tweetText + footer)
+            tweet = await Twitter.v1.tweet('[MOMENT]\n' + tweetText + footer)
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
