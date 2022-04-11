@@ -21,6 +21,7 @@ const oauthSecret = string(process.env.TWT_OAUTH_SECRET)
 const { Translate } = v2
 
 import { fileURLToPath } from "url"
+import { WeversePost } from "weverse/lib/cjs/models"
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const Twitter = new TwitterApi({
@@ -40,54 +41,15 @@ const Weverse = new WeverseClient({token: wvToken}, true)
 const tweets = new Map<number, TweetV1>()
 const savedTweets: SaveTweet[] = []
 const twtPrefix = 'https://twitter.com/DeukaeWeverse/status/'
+const postBacklog: number[] = []
 
 async function run() {
     testTrans()
     loadTweets()
     await Weverse.init({allPosts: false, allMedia: false, allNotifications: false})
+    backlog()
     Weverse.listen({listen: true, interval: 5000, process: true})
-    Weverse.on('post', async post => {
-        try {
-            const body = post.body
-                ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
-                : emoji(post.artist.id) + '\n\n'
-            const tweetText = body + memberHash(post.artist.id) + '\n'
-            let tweet: TweetV1 | undefined
-            let medias: string[] | undefined
-            if (post.photos && post.photos.length) {
-                const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
-                medias = await Promise.all(photos.map(p => {
-                    return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
-                }))
-                tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
-                console.log(tweet)
-                tweets.set(post.id, tweet)
-                savedTweets.push({postId: post.id, tweet: tweet})
-                saveTweets()
-            } else if (post.attachedVideos) {
-                const videos = await Promise.all(post.attachedVideos.map(v => downloadImg(v.videoUrl)))
-                medias = await Promise.all(videos.map(v => {
-                    return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
-                }))
-                tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
-                console.log(tweet)
-                tweets.set(post.id, tweet)
-                savedTweets.push({postId: post.id, tweet: tweet})
-                saveTweets()
-            } else {
-                tweet = await Twitter.v1.tweet(tweetText + footer)
-                console.log(tweet)
-                tweets.set(post.id, tweet)
-                savedTweets.push({postId: post.id, tweet: tweet})
-                saveTweets()
-            }
-            if (tweet && post.body) {
-                replyWithTrans(post.body, post.artist.id, tweet, medias)
-            }
-        } catch(e) {
-            console.error(e)
-        }
-    })
+    Weverse.on('post', handlePost)
     Weverse.on('comment', async (comment, post) => {
         const tweetText = emoji(comment.artist.id) + ' replied to '
                         + emoji(post.artist.id) + ': '
@@ -104,6 +66,50 @@ async function run() {
     Weverse.on('poll', status => {
         console.log('Polled Weverse: ', status, new Date().toLocaleString())
     })
+}
+
+async function handlePost(post: WeversePost) {
+    try {
+        const body = post.body
+            ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
+            : emoji(post.artist.id) + '\n\n'
+        const tweetText = body + memberHash(post.artist.id) + '\n'
+        let tweet: TweetV1 | undefined
+        let medias: string[] | undefined
+        if (post.photos && post.photos.length) {
+            const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
+            medias = await Promise.all(photos.map(p => {
+                return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
+            }))
+            tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
+            console.log(tweet)
+            tweets.set(post.id, tweet)
+            savedTweets.push({postId: post.id, tweet: tweet})
+        } else if (post.attachedVideos) {
+            const videos = await Promise.all(post.attachedVideos.map(v => downloadImg(v.videoUrl)))
+            medias = await Promise.all(videos.map(v => {
+                return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
+            }))
+            tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
+            console.log(tweet)
+            tweets.set(post.id, tweet)
+            savedTweets.push({postId: post.id, tweet: tweet})
+        } else {
+            tweet = await Twitter.v1.tweet(tweetText + footer)
+            console.log(tweet)
+            tweets.set(post.id, tweet)
+            savedTweets.push({postId: post.id, tweet: tweet})
+        }
+        if (tweet && post.body) {
+            replyWithTrans(post.body, post.artist.id, tweet, medias)
+        }
+    } catch(e) {
+        console.error(e)
+        postBacklog.push(post.id)
+    } finally {
+        saveBacklog()
+        saveTweets()
+    }
 }
 
 async function replyWithTrans(text: string, artist: number, tweet: TweetV1, media?: string[]) {
@@ -134,6 +140,24 @@ function loadTweets() {
 async function testTrans() {
     const r = await Google.translate('뀨우😚\n썸냐들 정말 봄이 왔나봐요ㅠㅠㅠㅠㅠ🌸좋다ㅠㅠ', 'en')
     console.log(r[0])
+}
+
+async function backlog() {
+    const postIds = JSON.parse(fs.readFileSync(path.join(__dirname, '/tweets/backlog.json'), 'utf-8')) as number[]
+    console.log('backlog:', postIds)
+    postIds.forEach(async id => {
+        const post = await Weverse.getPost(id, 14)
+        console.log('backlog post:')
+        console.log(post)
+        if (post) {
+            handlePost(post)
+        }
+    })
+}
+
+function saveBacklog() {
+    const data = JSON.stringify(postBacklog, null, 2)
+    fs.writeFileSync(path.join(__dirname, '/tweets/backlog.json'), data, 'utf-8')
 }
 
 run()

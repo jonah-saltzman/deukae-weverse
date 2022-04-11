@@ -9,6 +9,8 @@ export function string(val: unknown): string {
 interface Img { buffer: Buffer, filename: string, ext: string }
 
 export async function downloadImg(url: URL): Promise<Img> {
+    console.log(url)
+    console.log(url.pathname)
     const filename = path.basename(url.pathname)
     const filetype = path.extname(filename).substring(1)
     const response = await axios.get(url.toString(), { responseType: 'arraybuffer' })
