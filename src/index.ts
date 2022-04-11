@@ -48,8 +48,10 @@ async function run() {
     loadTweets()
     await Weverse.init({allPosts: false, allMedia: false, allNotifications: false})
     backlog()
+    onThisDay()
+    setInterval(onThisDay, 86400000)
     Weverse.listen({listen: true, interval: 5000, process: true})
-    Weverse.on('post', handlePost)
+    Weverse.on('post', (post) => handlePost(post, false))
     Weverse.on('comment', async (comment, post) => {
         const tweetText = emoji(comment.artist.id) + ' replied to '
                         + emoji(post.artist.id) + ': '
@@ -68,12 +70,17 @@ async function run() {
     })
 }
 
-async function handlePost(post: WeversePost) {
+async function handlePost(post: WeversePost, otd: boolean) {
     try {
+        const today = post.createdAt
         const body = post.body
             ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
             : emoji(post.artist.id) + '\n\n'
         const tweetText = body + memberHash(post.artist.id) + '\n'
+        const date = today.getFullYear().toString().substring(2)
+                     + (today.getMonth() + 1).toString().padStart(2, '0')
+                     + today.getDate().toString()
+        const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
         let tweet: TweetV1 | undefined
         let medias: string[] | undefined
         if (post.photos && post.photos.length) {
@@ -81,7 +88,7 @@ async function handlePost(post: WeversePost) {
             medias = await Promise.all(photos.map(p => {
                 return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
             }))
-            tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
+            tweet = await Twitter.v1.tweet(prefix + tweetText + footer, { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
@@ -90,12 +97,12 @@ async function handlePost(post: WeversePost) {
             medias = await Promise.all(videos.map(v => {
                 return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
             }))
-            tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
+            tweet = await Twitter.v1.tweet(prefix + tweetText + footer, { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
         } else {
-            tweet = await Twitter.v1.tweet('[MOMENT]\n' + tweetText + footer)
+            tweet = await Twitter.v1.tweet(prefix + tweetText + footer)
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
@@ -150,9 +157,27 @@ async function backlog() {
         console.log('backlog post:')
         console.log(post)
         if (post) {
-            handlePost(post)
+            handlePost(post, false)
         }
     })
+}
+
+async function onThisDay() {
+    const today = new Date()
+    const post = sameDay(today)
+    if (post) {
+        if (!tweets.has(post.id)) {
+            handlePost(post, true)
+        }
+    }
+}
+
+function sameDay(d: Date): WeversePost | undefined {
+    return Weverse.posts.find(p => {
+        return p.createdAt.getFullYear() !== d.getFullYear()
+               && p.createdAt.getMonth() === d.getMonth()
+               && p.createdAt.getDate() === d.getDate()
+      })
 }
 
 function saveBacklog() {

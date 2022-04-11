@@ -28,57 +28,85 @@ const myClient = new WeverseClient({token: wvToken}, true)
 
 async function translateText() {
   await myClient.init({allMedia: false, allNotifications: false, allPosts: false})
-  console.log(myClient.authType)
-  console.log(myClient.authorized)
-  const post = (await myClient.getPost(1689272222511067, 14))
-  if (post) {
-    handlePost(post)
-  }
+  myClient.posts.forEach((post) => handlePost(post, false))
+//   console.log(myClient.authType)
+//   console.log(myClient.authorized)
+//   const today = sameDay(new Date())
+//   const yday = sameDay(new Date('04-10-2022'))
+//   const before = sameDay(new Date('04-09-2022'))
+//   if (today) {
+//       console.log('today')
+//       console.log(today.attachedVideos)
+//       console.log(today.photos)
+//   }
+//   if (yday) {
+//       console.log('yday')
+//       console.log(yday.attachedVideos)
+//       console.log(yday.photos)
+//   }
+//   if (before) {
+//         console.log('before')
+//       console.log(before.attachedVideos)
+//       console.log(before.photos)
+//   }
 }
 
-async function handlePost(post: WeversePost) {
-  try {
-      const body = post.body
-          ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
-          : emoji(post.artist.id) + '\n\n'
-      const tweetText = body + memberHash(post.artist.id) + '\n'
-      let tweet: TweetV1 | undefined
-      let medias: string[] | undefined
-      if (post.photos && post.photos.length) {
-          post.photos.forEach(p => console.log(p.orgImgUrl))
-          //const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
-          //console.log(photos)
-          // medias = await Promise.all(photos.map(p => {
-          //     return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
-          // }))
-          // tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
-          // console.log(tweet)
-          // tweets.set(post.id, tweet)
-          // savedTweets.push({postId: post.id, tweet: tweet})
-          // saveTweets()
-      } else if (post.attachedVideos) {
-          const videos = await Promise.all(post.attachedVideos.map(v => downloadImg(v.videoUrl)))
-          medias = await Promise.all(videos.map(v => {
-              return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
-          }))
-          // tweet = await Twitter.v1.tweet(tweetText + footer, { media_ids: medias })
-          // console.log(tweet)
-          // tweets.set(post.id, tweet)
-          // savedTweets.push({postId: post.id, tweet: tweet})
-          // saveTweets()
-      } else {
-          // tweet = await Twitter.v1.tweet(tweetText + footer)
-          // console.log(tweet)
-          // tweets.set(post.id, tweet)
-          // savedTweets.push({postId: post.id, tweet: tweet})
-          // saveTweets()
-      }
-      if (tweet && post.body) {
-          // replyWithTrans(post.body, post.artist.id, tweet, medias)
-      }
-  } catch(e) {
-      console.error(e)
-  }
+function sameDay(d: Date): WeversePost | undefined {
+    return myClient.posts.find(p => {
+        return p.createdAt.getFullYear() !== d.getFullYear()
+               && p.createdAt.getMonth() === d.getMonth()
+               && p.createdAt.getDate() === d.getDate()
+      })
+}
+
+async function handlePost(post: WeversePost, otd: boolean) {
+    try {
+        const today = post.createdAt
+        const body = post.body
+            ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
+            : emoji(post.artist.id) + '\n\n'
+        const tweetText = body + memberHash(post.artist.id) + '\n'
+        const date = today.getFullYear().toString().substring(2)
+                     + (today.getMonth() + 1).toString().padStart(2, '0')
+                     + today.getDate().toString().padStart(2, '0')
+        const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
+        let tweet: TweetV1 | undefined
+        let medias: string[] | undefined
+        console.log(prefix + tweetText + footer)
+        if (post.photos && post.photos.length) {
+            // const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
+            // medias = await Promise.all(photos.map(p => {
+            //     return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
+            // }))
+            // tweet = await Twitter.v1.tweet(prefix + tweetText + footer, { media_ids: medias })
+            // console.log(tweet)
+            // tweets.set(post.id, tweet)
+            // savedTweets.push({postId: post.id, tweet: tweet})
+        } else if (post.attachedVideos) {
+            // const videos = await Promise.all(post.attachedVideos.map(v => downloadImg(v.videoUrl)))
+            // medias = await Promise.all(videos.map(v => {
+            //     return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
+            // }))
+            // tweet = await Twitter.v1.tweet(prefix + tweetText + footer, { media_ids: medias })
+            // console.log(tweet)
+            // tweets.set(post.id, tweet)
+            // savedTweets.push({postId: post.id, tweet: tweet})
+        } else {
+            // tweet = await Twitter.v1.tweet(prefix + tweetText + footer)
+            // console.log(tweet)
+            // tweets.set(post.id, tweet)
+            // savedTweets.push({postId: post.id, tweet: tweet})
+        }
+        if (tweet && post.body) {
+            // replyWithTrans(post.body, post.artist.id, tweet, medias)
+        }
+    } catch(e) {
+        console.error(e)
+        // postBacklog.push(post.id)
+    } finally {
+        // saveBacklog()
+        // saveTweets()
+    }
 }
 
 translateText();
