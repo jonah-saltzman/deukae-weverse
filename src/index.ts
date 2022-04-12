@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import fs from 'fs'
 import path from 'path'
 import {v2} from '@google-cloud/translate'
+import { getIgPosts } from './ig/index.js'
 
 type SaveTweet = {
     postId: number,

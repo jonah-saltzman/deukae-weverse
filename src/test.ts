@@ -8,6 +8,7 @@ dotenv.config()
 import { PythonShell } from 'python-shell'
 import path from 'path'
 import { fileURLToPath } from "url"
+import { getIgPosts } from './ig/index.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const twtKey = string(process.env.TWT_CONSUMER_KEY)
@@ -43,7 +44,7 @@ enum IG {
 const IgUsers = [IG.JIU, IG.SUA, IG.SIYEON, IG.HANDONG, IG.YOOH, IG.DAMI, IG.GAH]
 
 async function translateText() {
-    
+    await getIgPosts()
 }
 
 function sameDay(d: Date): WeversePost | undefined {

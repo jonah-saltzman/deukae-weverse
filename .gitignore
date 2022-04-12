@@ -5,4 +5,5 @@ tweets
 src/dc-weverse-9c6f63ca3f16.json
 lib/dc-weverse-9c6f63ca3f16.json
 .DS_Store
-ig
+ig-data
+instagram-scraper
