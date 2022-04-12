@@ -52,7 +52,7 @@ async function run() {
     onThisDay()
     setInterval(onThisDay, 86400000)
     Weverse.listen({listen: true, interval: 5000, process: true})
-    Weverse.on('post', (post) => handlePost(post, false))
+    Weverse.on('post', (post) => handlePost(post, false, false))
     Weverse.on('comment', async (comment, post) => {
         const tweetText = emoji(comment.artist.id) + ' replied to '
                         + emoji(post.artist.id) + ': '
@@ -71,8 +71,9 @@ async function run() {
     })
 }
 
-async function handlePost(post: WeversePost, otd: boolean) {
+async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
     try {
+        const suffix = trim ? '' : footer
         const today = post.createdAt
         const body = post.body
             ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
@@ -89,7 +90,7 @@ async function handlePost(post: WeversePost, otd: boolean) {
             medias = await Promise.all(photos.map(p => {
                 return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
             }))
-            tweet = await Twitter.v1.tweet(prefix + tweetText + footer, { media_ids: medias })
+            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix, { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
@@ -98,21 +99,26 @@ async function handlePost(post: WeversePost, otd: boolean) {
             medias = await Promise.all(videos.map(v => {
                 return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
             }))
-            tweet = await Twitter.v1.tweet(prefix + tweetText + footer, { media_ids: medias })
+            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix, { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
         } else {
-            tweet = await Twitter.v1.tweet(prefix + tweetText + footer)
+            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix)
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
         }
         if (tweet && post.body) {
-            replyWithTrans(post.body, post.artist.id, tweet, medias)
+            replyWithTrans(post.body, post.artist.id, tweet, medias, trim)
         }
     } catch(e) {
+        const err = e as any
         console.error(e)
+        if (err.code === 403 && !trim) {
+            await handlePost(post, otd, true)
+            return
+        }
         postBacklog.push(post.id)
     } finally {
         saveBacklog()
@@ -120,11 +126,13 @@ async function handlePost(post: WeversePost, otd: boolean) {
     }
 }
 
-async function replyWithTrans(text: string, artist: number, tweet: TweetV1, media?: string[]) {
+async function replyWithTrans(text: string, artist: number, tweet: TweetV1, media?: string[], trim?: boolean) {
+    trim = (trim === undefined || trim === false) ? false : true
+    const suffix = trim ? '' : footer
     try {
         const translations = await Google.translate(text, 'en')
         const tweetText = '[TRANS]\n' + emoji(artist) + ': ' + translations[0] + '\n\n' + memberHash(artist) + '\n'
-        await Twitter.v1.reply(tweetText + footer, tweet.id_str, {media_ids: media})
+        await Twitter.v1.reply(tweetText + suffix, tweet.id_str, {media_ids: media})
     } catch (e) {
         console.error(e)
     }
@@ -158,7 +166,7 @@ async function backlog() {
         console.log('backlog post:')
         console.log(post)
         if (post) {
-            handlePost(post, false)
+            handlePost(post, false, false)
         }
     })
 }
@@ -168,7 +176,7 @@ async function onThisDay() {
     const post = sameDay(today)
     if (post) {
         if (!tweets.has(post.id)) {
-            handlePost(post, true)
+            handlePost(post, true, false)
         }
     }
 }
