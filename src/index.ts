@@ -67,7 +67,9 @@ async function run() {
         }
     })
     Weverse.on('poll', status => {
-        console.log('Polled Weverse: ', status, new Date().toLocaleString())
+        if (!status) {
+            console.log('Failed to poll Weverse: ', new Date().toLocaleString())
+        }
     })
 }
 
@@ -178,6 +180,8 @@ async function onThisDay() {
         if (!tweets.has(post.id)) {
             handlePost(post, true, false)
         }
+    } else {
+        console.log('No OTD today')
     }
 }
 
