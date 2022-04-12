@@ -60,8 +60,11 @@ async function run() {
                         + memberHash(comment.artist.id) + '\n'
         const replyTo = tweets.get(post.id)
         if (replyTo) {
-            const withQuote = tweetText + twtPrefix + replyTo.id_str + '\n'
-            const tweet = await Twitter.v1.tweet(withQuote + footer)
+            const withQuote = tweetText + '\n'
+            const tweet = await Twitter.v1.tweet(
+                withQuote + footer, 
+                { attachment_url: twtPrefix + replyTo.id_str }
+            )
             replyWithTrans(comment.body, comment.artist.id, tweet)
             console.log(tweet)
         }
