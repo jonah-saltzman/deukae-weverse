@@ -44,154 +44,131 @@ const savedTweets: SaveTweet[] = []
 const twtPrefix = 'https://twitter.com/DeukaeWeverse/status/'
 const postBacklog: number[] = []
 
+const text = "오늘의 일기☔️\n\n오늘 갑자기 날씨가 추워졌다\n난 티셔츠 한 장만 입었지만 차안 아니면 실내에 있어서 춥지 않았다\n하지만 우릴 기다리는 썸냐들은\n비도 오는데 밖에 있었다 ㅠㅠ\n감기 걸리진 않을까 걱정이 된다\n모두가 아프지 않았으면\n좋겠다♥️ \n      그리고…\n다들 메종(집) 잘 들어가쪄???\n 푹자용♥️"
+
 async function run() {
-    // testTrans()
-    loadTweets()
-    await Weverse.init({allPosts: false, allMedia: false, allNotifications: false})
-    backlog()
-    // onThisDay()
-    //setInterval(onThisDay, 86400000)
-    // Weverse.listen({listen: true, interval: 5000, process: true})
-    // Weverse.on('post', (post) => handlePost(post, false))
-    // Weverse.on('comment', async (comment, post) => {
-    //     const tweetText = emoji(comment.artist.id) + ' replied to '
-    //                     + emoji(post.artist.id) + ': '
-    //                     + comment.body + '\n'
-    //                     + memberHash(comment.artist.id) + '\n'
-    //     const replyTo = tweets.get(post.id)
-    //     if (replyTo) {
-    //         const withQuote = tweetText + twtPrefix + replyTo.id_str + '\n'
-    //         const tweet = await Twitter.v1.tweet(withQuote + footer)
-    //         replyWithTrans(comment.body, comment.artist.id, tweet)
-    //         console.log(tweet)
-    //     }
-    // })
-    // Weverse.on('poll', status => {
-    //     console.log('Polled Weverse: ', status, new Date().toLocaleString())
-    // })
+    handlePost(text, new Date(), 61)
 }
 
-async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
+const LIMIT = 200
+
+async function thread(text: string, media?: string[]) { //Promise<TweetV1[]>
+    const n = Math.ceil(text.length / LIMIT)
+    console.log(`n: ${n}`)
+    let pages: string[] = []
+    for (let i = 0; i < n; i++) {
+        pages.push(text.slice(i * LIMIT, (i + 1) * LIMIT).trim())
+        if (i < n - 1) {
+            pages.push(`…[${i + 1}/${n}]&&…`)
+        }
+    }
+    const str = pages.join('')
+    pages = str.split('&&')
+    return pages
+}
+
+async function handlePost(text: string, created: Date, id: number) {
     try {
-        const suffix = trim ? '' : footer
-        const today = post.createdAt
-        const body = post.body
-            ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
-            : emoji(post.artist.id) + '\n\n'
-        const tweetText = body + memberHash(post.artist.id) + '\n'
+        const suffix = footer
+        const today = created
+        const body = text
+            ? emoji(id) + ': ' + text + '\n\n'
+            : emoji(id) + '\n\n'
+        const tweetText = body + memberHash(id) + '\n'
         const date = today.getFullYear().toString().substring(2)
                      + (today.getMonth() + 1).toString().padStart(2, '0')
                      + today.getDate().toString()
-        const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
-        let tweet: TweetV1 | undefined
+        const prefix = `[${date}]\n`
+        let tweets: string[]
         let medias: string[] | undefined
-        if (post.photos && post.photos.length) {
-            const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
-            medias = await Promise.all(photos.map(p => {
-                return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
-            }))
-            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix, { media_ids: medias })
-            console.log(tweet)
-            tweets.set(post.id, tweet)
-            savedTweets.push({postId: post.id, tweet: tweet})
-        } else if (post.attachedVideos) {
-            const videos = await Promise.all(post.attachedVideos.map(v => downloadImg(v.videoUrl)))
-            medias = await Promise.all(videos.map(v => {
-                return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
-            }))
-            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix, { media_ids: medias })
-            console.log(tweet)
-            tweets.set(post.id, tweet)
-            savedTweets.push({postId: post.id, tweet: tweet})
-        } else {
-            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix)
-            console.log(tweet)
-            tweets.set(post.id, tweet)
-            savedTweets.push({postId: post.id, tweet: tweet})
-        }
-        if (tweet && post.body) {
-            replyWithTrans(post.body, post.artist.id, tweet, medias, trim)
-        }
+        tweets = await thread(prefix + tweetText + suffix)
+        tweets.forEach(t => {
+            console.log(t)
+            console.log(`len: ${t.length}`)
+        })
+        // if (tweet && post.body) {
+        //     replyWithTrans(post.body, post.artist.id, tweet, medias, trim)
+        // }
     } catch(e) {
-        const err = e as any
-        console.error(e)
-        if (err.code === 403 && !trim) {
-            await handlePost(post, otd, true)
-            return
-        }
-        postBacklog.push(post.id)
+        // const err = e as any
+        // console.error(e)
+        // if (err.code === 403 && !trim) {
+        //     await handlePost(post, otd, true)
+        //     return
+        // }
+        // postBacklog.push(post.id)
     } finally {
-        saveBacklog()
-        saveTweets()
+        // saveBacklog()
+        // saveTweets()
     }
 }
 
-async function replyWithTrans(text: string, artist: number, tweet: TweetV1, media?: string[], trim?: boolean) {
-    trim = (trim === undefined || trim === false) ? false : true
-    const suffix = trim ? '' : footer
-    try {
-        const translations = await Google.translate(text, 'en')
-        const tweetText = '[TRANS]\n' + emoji(artist) + ': ' + translations[0] + '\n\n' + memberHash(artist) + '\n'
-        await Twitter.v1.reply(tweetText + suffix, tweet.id_str, {media_ids: media})
-    } catch (e) {
-        console.error(e)
-    }
-}
+// async function replyWithTrans(text: string, artist: number, tweet: TweetV1, media?: string[], trim?: boolean) {
+//     trim = (trim === undefined || trim === false) ? false : true
+//     const suffix = trim ? '' : footer
+//     try {
+//         const translations = await Google.translate(text, 'en')
+//         const tweetText = '[TRANS]\n' + emoji(artist) + ': ' + translations[0] + '\n\n' + memberHash(artist) + '\n'
+//         await Twitter.v1.reply(tweetText + suffix, tweet.id_str, {media_ids: media})
+//     } catch (e) {
+//         console.error(e)
+//     }
+// }
 
-function saveTweets() {
-    const data = JSON.stringify(savedTweets, null, 2)
-    fs.writeFileSync(path.join(__dirname, '/tweets/tweets.json'), data, 'utf-8')
-}
+// function saveTweets() {
+//     const data = JSON.stringify(savedTweets, null, 2)
+//     fs.writeFileSync(path.join(__dirname, '/tweets/tweets.json'), data, 'utf-8')
+// }
 
-function loadTweets() {
-    const data = fs.readFileSync(path.join(__dirname, '/tweets/tweets.json'), 'utf-8')
-    const array = JSON.parse(data) as SaveTweet[]
-    array.forEach(saved => {
-        tweets.set(saved.postId, saved.tweet)
-        savedTweets.push(saved)
-    })
-    console.log(`loaded ${array.length} tweets from json`)
-}
+// function loadTweets() {
+//     const data = fs.readFileSync(path.join(__dirname, '/tweets/tweets.json'), 'utf-8')
+//     const array = JSON.parse(data) as SaveTweet[]
+//     array.forEach(saved => {
+//         tweets.set(saved.postId, saved.tweet)
+//         savedTweets.push(saved)
+//     })
+//     console.log(`loaded ${array.length} tweets from json`)
+// }
 
-async function testTrans() {
-    const r = await Google.translate('뀨우😚\n썸냐들 정말 봄이 왔나봐요ㅠㅠㅠㅠㅠ🌸좋다ㅠㅠ', 'en')
-    console.log(r[0])
-}
+// async function testTrans() {
+//     const r = await Google.translate('뀨우😚\n썸냐들 정말 봄이 왔나봐요ㅠㅠㅠㅠㅠ🌸좋다ㅠㅠ', 'en')
+//     console.log(r[0])
+// }
 
-async function backlog() {
-    const postIds = JSON.parse(fs.readFileSync(path.join(__dirname, '/tweets/backlog.json'), 'utf-8')) as number[]
-    console.log('backlog:', postIds)
-    postIds.forEach(async id => {
-        const post = await Weverse.getPost(id, 14)
-        console.log('backlog post:')
-        console.log(post)
-        if (post) {
-            handlePost(post, false, false)
-        }
-    })
-}
+// async function backlog() {
+//     const postIds = JSON.parse(fs.readFileSync(path.join(__dirname, '/tweets/backlog.json'), 'utf-8')) as number[]
+//     console.log('backlog:', postIds)
+//     postIds.forEach(async id => {
+//         const post = await Weverse.getPost(id, 14)
+//         console.log('backlog post:')
+//         console.log(post)
+//         if (post) {
+//             handlePost(post, false, false)
+//         }
+//     })
+// }
 
-async function onThisDay() {
-    const today = new Date()
-    const post = sameDay(today)
-    if (post) {
-        if (!tweets.has(post.id)) {
-            handlePost(post, true, false)
-        }
-    }
-}
+// async function onThisDay() {
+//     const today = new Date()
+//     const post = sameDay(today)
+//     if (post) {
+//         if (!tweets.has(post.id)) {
+//             handlePost(post, true, false)
+//         }
+//     }
+// }
 
-function sameDay(d: Date): WeversePost | undefined {
-    return Weverse.posts.find(p => {
-        return p.createdAt.getFullYear() !== d.getFullYear()
-               && p.createdAt.getMonth() === d.getMonth()
-               && p.createdAt.getDate() === d.getDate()
-      })
-}
+// function sameDay(d: Date): WeversePost | undefined {
+//     return Weverse.posts.find(p => {
+//         return p.createdAt.getFullYear() !== d.getFullYear()
+//                && p.createdAt.getMonth() === d.getMonth()
+//                && p.createdAt.getDate() === d.getDate()
+//       })
+// }
 
-function saveBacklog() {
-    const data = JSON.stringify(postBacklog, null, 2)
-    fs.writeFileSync(path.join(__dirname, '/tweets/backlog.json'), data, 'utf-8')
-}
+// function saveBacklog() {
+//     const data = JSON.stringify(postBacklog, null, 2)
+//     fs.writeFileSync(path.join(__dirname, '/tweets/backlog.json'), data, 'utf-8')
+// }
 
 run()

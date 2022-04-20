@@ -95,7 +95,7 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
             medias = await Promise.all(photos.map(p => {
                 return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
             }))
-            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix, { media_ids: medias })
+            tweet = await Twitter.v1.tweet(prefix + tweetText + (trim ? '' : suffix), { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
@@ -104,12 +104,12 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
             medias = await Promise.all(videos.map(v => {
                 return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
             }))
-            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix, { media_ids: medias })
+            tweet = await Twitter.v1.tweet(prefix + tweetText + (trim ? '' : suffix), { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
         } else {
-            tweet = await Twitter.v1.tweet(prefix + tweetText + suffix)
+            tweet = await Twitter.v1.tweet(prefix + tweetText + (trim ? '' : suffix))
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
@@ -137,7 +137,7 @@ async function replyWithTrans(text: string, artist: number, tweet: TweetV1, medi
     try {
         const translations = await Google.translate(text, 'en')
         const tweetText = '[TRANS]\n' + emoji(artist) + ': ' + translations[0] + '\n\n' + memberHash(artist) + '\n'
-        await Twitter.v1.reply(tweetText + suffix, tweet.id_str, {media_ids: media})
+        await Twitter.v1.reply(tweetText + (trim ? '' : suffix), tweet.id_str, {media_ids: media})
     } catch (e) {
         console.error(e)
     }
