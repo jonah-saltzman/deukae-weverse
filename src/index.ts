@@ -39,12 +39,15 @@ const Google = new Translate({
 
 const Weverse = new WeverseClient({token: wvToken}, true)
 
+const version = 1.2
+
 const tweets = new Map<number, TweetV1>()
 const savedTweets: SaveTweet[] = []
 const twtPrefix = 'https://twitter.com/DeukaeWeverse/status/'
 const postBacklog: number[] = []
 
 async function run() {
+    console.log(`Version ${version}`)
     testTrans()
     loadTweets()
     await Weverse.init({allPosts: true, allMedia: false, allNotifications: false})
