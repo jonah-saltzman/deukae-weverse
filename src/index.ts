@@ -80,17 +80,18 @@ async function run() {
 }
 
 async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
+    const suffix = trim ? '' : footer
+    const today = post.createdAt
+    const body = post.body
+        ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
+        : emoji(post.artist.id) + '\n\n'
+    const tweetText = body + memberHash(post.artist.id) + '\n'
+    const date = today.getFullYear().toString().substring(2)
+                    + (today.getMonth() + 1).toString().padStart(2, '0')
+                    + today.getDate().toString()
+    const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
+    const TEXT = prefix + tweetText + (trim ? '' : suffix)
     try {
-        const suffix = trim ? '' : footer
-        const today = post.createdAt
-        const body = post.body
-            ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
-            : emoji(post.artist.id) + '\n\n'
-        const tweetText = body + memberHash(post.artist.id) + '\n'
-        const date = today.getFullYear().toString().substring(2)
-                     + (today.getMonth() + 1).toString().padStart(2, '0')
-                     + today.getDate().toString()
-        const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
         let tweet: TweetV1 | undefined
         let medias: string[] | undefined
         if (post.photos && post.photos.length) {
@@ -98,7 +99,7 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
             medias = await Promise.all(photos.map(p => {
                 return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
             }))
-            tweet = await Twitter.v1.tweet(prefix + tweetText + (trim ? '' : suffix), { media_ids: medias })
+            tweet = await Twitter.v1.tweet(TEXT, { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
@@ -107,12 +108,12 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
             medias = await Promise.all(videos.map(v => {
                 return Twitter.v1.uploadMedia(v.buffer, { type: v.ext })
             }))
-            tweet = await Twitter.v1.tweet(prefix + tweetText + (trim ? '' : suffix), { media_ids: medias })
+            tweet = await Twitter.v1.tweet(TEXT, { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
         } else {
-            tweet = await Twitter.v1.tweet(prefix + tweetText + (trim ? '' : suffix))
+            tweet = await Twitter.v1.tweet(TEXT)
             console.log(tweet)
             tweets.set(post.id, tweet)
             savedTweets.push({postId: post.id, tweet: tweet})
@@ -128,6 +129,8 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
             return
         }
         postBacklog.push(post.id)
+        const fileName = post.artist.id.toString() + '-' + post.id.toString() + '.txt'
+        fs.writeFileSync(path.join(__dirname, `/tweets/${fileName}`), TEXT, 'utf-8')
     } finally {
         saveBacklog()
         saveTweets()
