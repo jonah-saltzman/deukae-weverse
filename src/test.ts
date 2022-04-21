@@ -1,5 +1,5 @@
 import { WeverseClient } from "weverse"
-import { TweetV1, TwitterApi } from 'twitter-api-v2'
+import { SendTweetV1Params, TweetV1, TwitterApi } from 'twitter-api-v2'
 import { string, downloadImg, emoji, memberHash, footer } from "./helpers/index.js"
 import dotenv from 'dotenv'
 import fs from 'fs'
@@ -46,62 +46,73 @@ const postBacklog: number[] = []
 
 const text = "오늘의 일기☔️\n\n오늘 갑자기 날씨가 추워졌다\n난 티셔츠 한 장만 입었지만 차안 아니면 실내에 있어서 춥지 않았다\n하지만 우릴 기다리는 썸냐들은\n비도 오는데 밖에 있었다 ㅠㅠ\n감기 걸리진 않을까 걱정이 된다\n모두가 아프지 않았으면\n좋겠다♥️ \n      그리고…\n다들 메종(집) 잘 들어가쪄???\n 푹자용♥️"
 
-async function run() {
-    handlePost(text, new Date(), 61)
-}
+// async function run() {
+//     handlePost(text, new Date(), 61)
+// }
 
-const LIMIT = 200
+const LIMIT = 130
 
-async function thread(text: string, media?: string[]) { //Promise<TweetV1[]>
-    const n = Math.ceil(text.length / LIMIT)
-    console.log(`n: ${n}`)
-    let pages: string[] = []
-    for (let i = 0; i < n; i++) {
-        pages.push(text.slice(i * LIMIT, (i + 1) * LIMIT).trim())
-        if (i < n - 1) {
-            pages.push(`…[${i + 1}/${n}]&&…`)
+async function thread(text: string, media?: string[]): Promise<TweetV1[] | undefined> {
+    try {
+        const tweet = await Twitter.v1.tweet(text, { media_ids: media })
+        return [tweet]
+    } catch {
+        const n = Math.ceil(text.length / LIMIT)
+        let pages: string[] = []
+        for (let i = 0; i < n; i++) {
+            pages.push(text.slice(i * LIMIT, (i + 1) * LIMIT).trim())
+            if (i < n - 1) {
+                pages.push(`…[${i + 1}/${n}]&&…`)
+            }
+        }
+        const str = pages.join('')
+        pages = str.split('&&')
+        const params: SendTweetV1Params[] = pages.map(text => ({ status: text }))
+        params[params.length - 1].media_ids = media
+        try {
+            const tweets = await Twitter.v1.tweetThread(params)
+            return tweets
+        } catch {
+            return undefined
         }
     }
-    const str = pages.join('')
-    pages = str.split('&&')
-    return pages
 }
 
-async function handlePost(text: string, created: Date, id: number) {
-    try {
-        const suffix = footer
-        const today = created
-        const body = text
-            ? emoji(id) + ': ' + text + '\n\n'
-            : emoji(id) + '\n\n'
-        const tweetText = body + memberHash(id) + '\n'
-        const date = today.getFullYear().toString().substring(2)
-                     + (today.getMonth() + 1).toString().padStart(2, '0')
-                     + today.getDate().toString()
-        const prefix = `[${date}]\n`
-        let tweets: string[]
-        let medias: string[] | undefined
-        tweets = await thread(prefix + tweetText + suffix)
-        tweets.forEach(t => {
-            console.log(t)
-            console.log(`len: ${t.length}`)
-        })
-        // if (tweet && post.body) {
-        //     replyWithTrans(post.body, post.artist.id, tweet, medias, trim)
-        // }
-    } catch(e) {
-        // const err = e as any
-        // console.error(e)
-        // if (err.code === 403 && !trim) {
-        //     await handlePost(post, otd, true)
-        //     return
-        // }
-        // postBacklog.push(post.id)
-    } finally {
-        // saveBacklog()
-        // saveTweets()
-    }
-}
+// async function handlePost(text: string, created: Date, id: number) {
+//     try {
+//         const suffix = footer
+//         const today = created
+//         const body = text
+//             ? emoji(id) + ': ' + text + '\n\n'
+//             : emoji(id) + '\n\n'
+//         const tweetText = body + memberHash(id) + '\n'
+//         const date = today.getFullYear().toString().substring(2)
+//                      + (today.getMonth() + 1).toString().padStart(2, '0')
+//                      + today.getDate().toString()
+//         const prefix = `[${date}]\n`
+//         let tweets: string[]
+//         let medias: string[] | undefined
+//         tweets = await thread(prefix + tweetText + suffix)
+//         tweets.forEach(t => {
+//             console.log(t)
+//             console.log(`len: ${t.length}`)
+//         })
+//         // if (tweet && post.body) {
+//         //     replyWithTrans(post.body, post.artist.id, tweet, medias, trim)
+//         // }
+//     } catch(e) {
+//         // const err = e as any
+//         // console.error(e)
+//         // if (err.code === 403 && !trim) {
+//         //     await handlePost(post, otd, true)
+//         //     return
+//         // }
+//         // postBacklog.push(post.id)
+//     } finally {
+//         // saveBacklog()
+//         // saveTweets()
+//     }
+// }
 
 // async function replyWithTrans(text: string, artist: number, tweet: TweetV1, media?: string[], trim?: boolean) {
 //     trim = (trim === undefined || trim === false) ? false : true
@@ -170,5 +181,3 @@ async function handlePost(text: string, created: Date, id: number) {
 //     const data = JSON.stringify(postBacklog, null, 2)
 //     fs.writeFileSync(path.join(__dirname, '/tweets/backlog.json'), data, 'utf-8')
 // }
-
-run()

@@ -1,5 +1,5 @@
 import { WeverseClient } from "weverse"
-import { TweetV1, TwitterApi } from 'twitter-api-v2'
+import { TweetV1, TwitterApi, SendTweetV1Params } from 'twitter-api-v2'
 import { string, downloadImg, emoji, memberHash, footer } from "./helpers/index.js"
 import dotenv from 'dotenv'
 import fs from 'fs'
@@ -45,6 +45,7 @@ const tweets = new Map<number, TweetV1>()
 const savedTweets: SaveTweet[] = []
 const twtPrefix = 'https://twitter.com/DeukaeWeverse/status/'
 const postBacklog: number[] = []
+const LIMIT = 130
 
 async function run() {
     console.log(`Version ${version}`)
@@ -91,9 +92,9 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
                     + today.getDate().toString()
     const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
     const TEXT = prefix + tweetText + (trim ? '' : suffix)
+    let tweet: TweetV1 | undefined
+    let medias: string[] | undefined
     try {
-        let tweet: TweetV1 | undefined
-        let medias: string[] | undefined
         if (post.photos && post.photos.length) {
             const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
             medias = await Promise.all(photos.map(p => {
@@ -127,6 +128,15 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
         if (err.code === 403 && !trim) {
             await handlePost(post, otd, true)
             return
+        } else if (err.code === 403 && trim) {
+            try {
+                const tweetArr = await thread(TEXT, medias)
+                if (tweetArr) {
+                    tweets.set(post.id, tweetArr[0])
+                    savedTweets.push({postId: post.id, tweet: tweetArr[0]})
+                    return
+                }
+            } catch {}
         }
         postBacklog.push(post.id)
         const fileName = post.artist.id.toString() + '-' + post.id.toString() + '.txt'
@@ -134,6 +144,34 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
     } finally {
         saveBacklog()
         saveTweets()
+    }
+}
+
+async function thread(text: string, media?: string[]): Promise<TweetV1[] | undefined> {
+    try {
+        const tweet = await Twitter.v1.tweet(text, { media_ids: media })
+        return [tweet]
+    } catch {
+        const n = Math.ceil(text.length / LIMIT)
+        let pages: string[] = []
+        for (let i = 0; i < n; i++) {
+            pages.push(text.slice(i * LIMIT, (i + 1) * LIMIT).trim())
+            if (i < n - 1) {
+                pages.push(`…[${i + 1}/${n}]&&…`)
+            }
+        }
+        const str = pages.join('')
+        pages = str.split('&&')
+        const params: SendTweetV1Params[] = pages.map(text => ({ status: text }))
+        if (media) {
+            params[params.length - 1].media_ids = media
+        }
+        try {
+            const tweets = await Twitter.v1.tweetThread(params)
+            return tweets
+        } catch {
+            return undefined
+        }
     }
 }
 
