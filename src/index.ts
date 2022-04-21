@@ -81,17 +81,7 @@ async function run() {
 }
 
 async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
-    const suffix = trim ? '' : footer
-    const today = post.createdAt
-    const body = post.body
-        ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
-        : emoji(post.artist.id) + '\n\n'
-    const tweetText = body + memberHash(post.artist.id) + '\n'
-    const date = today.getFullYear().toString().substring(2)
-                    + (today.getMonth() + 1).toString().padStart(2, '0')
-                    + today.getDate().toString()
-    const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
-    const TEXT = prefix + tweetText + (trim ? '' : suffix)
+    const TEXT = tweetText(post, otd, trim)
     let tweet: TweetV1 | undefined
     let medias: string[] | undefined
     try {
@@ -126,11 +116,9 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
         const err = e as any
         console.error(e)
         if (err.code === 403 && !trim) {
-            await handlePost(post, otd, true)
-            return
-        } else if (err.code === 403 && trim) {
             try {
-                const tweetArr = await thread(TEXT, medias)
+                const trimmed = tweetText(post, otd, true)
+                const tweetArr = await thread(trimmed, medias)
                 if (tweetArr) {
                     tweets.set(post.id, tweetArr[0])
                     savedTweets.push({postId: post.id, tweet: tweetArr[0]})
@@ -145,6 +133,21 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
         saveBacklog()
         saveTweets()
     }
+}
+
+function tweetText(post: WeversePost, otd: boolean, trim: boolean): string {
+    const suffix = trim ? '' : footer
+    const today = post.createdAt
+    const body = post.body
+        ? emoji(post.artist.id) + ': ' + post.body + '\n\n'
+        : emoji(post.artist.id) + '\n\n'
+    const tweetText = body + memberHash(post.artist.id) + '\n'
+    const date = today.getFullYear().toString().substring(2)
+                    + (today.getMonth() + 1).toString().padStart(2, '0')
+                    + today.getDate().toString()
+    const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
+    const TEXT = prefix + tweetText + (trim ? '' : suffix)
+    return TEXT
 }
 
 async function thread(text: string, media?: string[]): Promise<TweetV1[] | undefined> {
