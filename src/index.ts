@@ -114,7 +114,8 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
         }
     } catch(e) {
         const err = e as any
-        console.error(e)
+        console.log(`failed to tweet post ${post.id}; trim = ${trim}`)
+        console.log(TEXT)
         if (err.code === 403 && !trim) {
             try {
                 const trimmed = tweetText(post, otd, true)
@@ -151,10 +152,14 @@ function tweetText(post: WeversePost, otd: boolean, trim: boolean): string {
 }
 
 async function thread(text: string, media?: string[]): Promise<TweetV1[] | undefined> {
+    console.log('attempting to tweet trimmed:')
+    console.log(text)
     try {
         const tweet = await Twitter.v1.tweet(text, { media_ids: media })
         return [tweet]
-    } catch {
+    } catch (e) {
+        const err = e as any
+        console.log(`trimmed failed: ${err.code}`)
         const n = Math.ceil(text.length / LIMIT)
         let pages: string[] = []
         for (let i = 0; i < n; i++) {
@@ -166,13 +171,18 @@ async function thread(text: string, media?: string[]): Promise<TweetV1[] | undef
         const str = pages.join('')
         pages = str.split('&&')
         const params: SendTweetV1Params[] = pages.map(text => ({ status: text }))
+        console.log(`attempting thread length ${params.length}`)
         if (media) {
             params[params.length - 1].media_ids = media
         }
+        console.log(params)
         try {
             const tweets = await Twitter.v1.tweetThread(params)
             return tweets
-        } catch {
+        } catch (e) {
+            console.log(`thread failed`)
+            const err = e as any
+            console.log(`code: ${err.status}`)
             return undefined
         }
     }
