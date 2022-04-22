@@ -231,7 +231,7 @@ async function backlog() {
     postIds.forEach(async id => {
         const post = await Weverse.getPost(id, 14)
         console.log('backlog post:')
-        console.log(post)
+        console.log(post?.body)
         if (post) {
             handlePost(post, false, false)
         }
