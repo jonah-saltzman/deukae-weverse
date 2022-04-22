@@ -86,10 +86,14 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
     let medias: string[] | undefined
     try {
         if (post.photos && post.photos.length) {
+            post.photos.forEach(p => console.log(p.orgImgUrl))
             const photos = await Promise.all(post.photos.map(p => downloadImg(p.orgImgUrl)))
+            console.log('downloaded photos: ', photos.length)
             medias = await Promise.all(photos.map(p => {
                 return Twitter.v1.uploadMedia(p.buffer, { type: p.ext })
             }))
+            console.log('tw medias')
+            console.log(medias)
             tweet = await Twitter.v1.tweet(TEXT, { media_ids: medias })
             console.log(tweet)
             tweets.set(post.id, tweet)
@@ -114,7 +118,7 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
         }
     } catch(e) {
         const err = e as any
-        console.log(err)
+        console.error(err)
         console.log(`failed to tweet post ${post.id}; trim = ${trim}`)
         console.log(TEXT)
         if (err.code === 403 && !trim) {
