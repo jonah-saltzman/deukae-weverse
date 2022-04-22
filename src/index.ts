@@ -114,6 +114,7 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
         }
     } catch(e) {
         const err = e as any
+        console.log(err)
         console.log(`failed to tweet post ${post.id}; trim = ${trim}`)
         console.log(TEXT)
         if (err.code === 403 && !trim) {
