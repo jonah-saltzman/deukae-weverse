@@ -131,6 +131,17 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
                     return
                 }
             } catch {}
+        } else if (err.code === 400) {
+            if (medias && medias.length > 4) {
+                try {
+                    const tweet = await multiImg(post, otd, false, medias)
+                    if (tweet) {
+                        tweets.set(post.id, tweet)
+                        savedTweets.push({ postId: post.id, tweet })
+                        return
+                    }
+                } catch {}
+            }
         }
         postBacklog.push(post.id)
         const fileName = post.artist.id.toString() + '-' + post.id.toString() + '.txt'
@@ -139,6 +150,17 @@ async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
         saveBacklog()
         saveTweets()
     }
+}
+
+async function multiImg(post: WeversePost, otd: boolean, trim: boolean, medias: string[]): Promise<TweetV1> {
+    const TEXT = tweetText(post, otd, false)
+    const n = Math.ceil(medias.length / 4) - 1
+    const first = await Twitter.v1.tweet(TEXT, {media_ids: medias.slice(0, 4)})
+    let prev: TweetV1 | null = first
+    for (let i = 1; i <= n; i++) {
+        prev = await Twitter.v1.reply('', prev.id_str, {media_ids: medias.slice(4 * i, 4 * (i + 1))})
+    }
+    return first
 }
 
 function tweetText(post: WeversePost, otd: boolean, trim: boolean): string {
