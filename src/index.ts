@@ -54,7 +54,7 @@ async function run() {
     await Weverse.init({allPosts: false, allMedia: false, allNotifications: false})
     backlog()
     //onThisDay()
-    setInterval(onThisDay, 86400000)
+    //setInterval(onThisDay, 86400000)
     Weverse.listen({listen: true, interval: 5000, process: true})
     Weverse.on('post', (post) => handlePost(post, false, false))
     Weverse.on('comment', async (comment, post) => {
@@ -156,9 +156,9 @@ async function multiImg(post: WeversePost, otd: boolean, trim: boolean, medias: 
     const TEXT = tweetText(post, otd, false)
     const n = Math.ceil(medias.length / 4) - 1
     const first = await Twitter.v1.tweet(TEXT, {media_ids: medias.slice(0, 4)})
-    let prev: TweetV1 | null = first
+    let prev: TweetV1 = first
     for (let i = 1; i <= n; i++) {
-        prev = await Twitter.v1.reply('', prev.id_str, {media_ids: medias.slice(4 * i, 4 * (i + 1))})
+        prev = await Twitter.v1.reply('', prev.id_str, { media_ids: medias.slice(4 * i, 4 * (i + 1)) })
     }
     return first
 }
