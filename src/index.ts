@@ -172,7 +172,7 @@ function tweetText(post: WeversePost, otd: boolean, trim: boolean): string {
     const tweetText = body + memberHash(post.artist.id) + '\n'
     const date = today.getFullYear().toString().substring(2)
                     + (today.getMonth() + 1).toString().padStart(2, '0')
-                    + today.getDate().toString()
+                    + today.getDate().toString().padStart(2, '0')
     const prefix = otd ? `[ON THIS DAY ${date}]\n` : `[${date}]\n`
     const TEXT = prefix + tweetText + (trim ? '' : suffix)
     return TEXT
