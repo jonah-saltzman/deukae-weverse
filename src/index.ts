@@ -49,7 +49,6 @@ const LIMIT = 130
 
 async function run() {
     console.log(`Version ${version}`)
-    testTrans()
     loadTweets()
     await Weverse.init({allPosts: false, allMedia: false, allNotifications: false})
     backlog()
@@ -240,11 +239,6 @@ function loadTweets() {
         savedTweets.push(saved)
     })
     console.log(`loaded ${array.length} tweets from json`)
-}
-
-async function testTrans() {
-    const r = await Google.translate('뀨우😚\n썸냐들 정말 봄이 왔나봐요ㅠㅠㅠㅠㅠ🌸좋다ㅠㅠ', 'en')
-    console.log(r[0])
 }
 
 async function backlog() {
