@@ -57,6 +57,7 @@ async function run() {
     Weverse.listen({listen: true, interval: 5000, process: true})
     Weverse.on('post', (post) => handlePost(post, false, false))
     Weverse.on('comment', async (comment, post) => {
+        if (comment.artist.id === post.artist.id) return
         const tweetText = emoji(comment.artist.id) + ' replied to '
                         + emoji(post.artist.id) + ': '
                         + comment.body + '\n'
