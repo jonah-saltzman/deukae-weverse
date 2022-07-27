@@ -51,6 +51,7 @@ async function run() {
     console.log(`Version ${version}`)
     loadTweets()
     await Weverse.init({allPosts: false, allMedia: false, allNotifications: false})
+    console.log(`authorization: `, await Weverse.checkLogin())
     backlog()
     //onThisDay()
     //setInterval(onThisDay, 86400000)
@@ -81,6 +82,7 @@ async function run() {
 }
 
 async function handlePost(post: WeversePost, otd: boolean, trim: boolean) {
+    console.log({post})
     const TEXT = tweetText(post, otd, trim)
     let tweet: TweetV1 | undefined
     let medias: string[] | undefined

@@ -8,7 +8,8 @@
       "outDir": "./lib",
       "declaration": true,
       "moduleResolution": "node",
-      "baseUrl": "./src"
+      "baseUrl": "./src",
+      "strictNullChecks": true
     },
     "include": [
       "./src"
